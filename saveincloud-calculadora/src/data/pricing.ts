@@ -84,8 +84,10 @@ export const PRICING = {
   ],
 
   ssl: 0,
+
   softwareStack: 0,
 };
 
-export const HOURS_PER_MONTH = 730;
 export const HOURS_PER_DAY = 24;
+
+export const HOURS_PER_MONTH = 730;

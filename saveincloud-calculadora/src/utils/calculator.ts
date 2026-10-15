@@ -1,8 +1,7 @@
 import type {
-  ConsumptionEstimate,
-  NodeConfig,
-  Topology,
-} from '../types/topology';
+  Infrastructure,
+  PriceResult,
+} from '../types/infrastructure';
 
 import {
   HOURS_PER_DAY,
@@ -33,21 +32,11 @@ export function getTierPrice(
     : 0;
 }
 
-function getAllNodes(
-  topology: Topology
-): NodeConfig[] {
-  return [
-    ...topology.nginx,
-    ...topology.apache,
-    ...topology.mariadb,
-  ];
-}
-
-function calculateReservedCloudlets(
-  topology: Topology
+function calculateReserved(
+  infrastructure: Infrastructure
 ) {
-  const totalCloudlets =
-    getAllNodes(topology).reduce(
+  const quantity =
+    infrastructure.nodes.reduce(
       (total, node) =>
         total +
         node.reservedCloudlets,
@@ -56,128 +45,111 @@ function calculateReservedCloudlets(
 
   const pricePerCloudlet =
     getTierPrice(
-      totalCloudlets,
+      quantity,
       PRICING.reservedCloudlets
     );
 
   return {
-    quantity: totalCloudlets,
+    quantity,
+
     pricePerCloudlet,
+
     total:
-      totalCloudlets *
+      quantity *
       pricePerCloudlet,
   };
 }
 
-function calculateDynamicCloudlets(
-  consumption: ConsumptionEstimate
+function calculateDynamicMaximum(
+  infrastructure: Infrastructure
 ) {
-  const totalUsedCloudlets =
-    consumption.dynamicCloudletsUsed;
+  const quantity =
+    infrastructure.nodes.reduce(
+      (total, node) =>
+        total +
+        node.dynamicCloudlets,
+      0
+    );
 
   const pricePerCloudlet =
     getTierPrice(
-      totalUsedCloudlets,
+      quantity,
       PRICING.dynamicCloudlets
     );
 
   return {
-    quantity:
-      totalUsedCloudlets,
+    quantity,
 
     pricePerCloudlet,
 
     total:
-      totalUsedCloudlets *
+      quantity *
       pricePerCloudlet,
   };
 }
 
-function calculateStorage(
-  consumption: ConsumptionEstimate
+function calculateStorageMaximum(
+  infrastructure: Infrastructure
 ) {
-  const totalUsedStorage =
-    consumption.storageGBUsed;
+  const quantity =
+    infrastructure.nodes.reduce(
+      (total, node) =>
+        total +
+        node.storageGB,
+      0
+    );
 
   return {
-    quantity:
-      totalUsedStorage,
+    quantity,
 
     pricePerGB:
       PRICING.storage.hourly,
 
     total:
-      totalUsedStorage *
+      quantity *
       PRICING.storage.hourly,
   };
 }
 
 function calculateIPv4(
-  topology: Topology
+  infrastructure: Infrastructure
 ) {
-  const totalIPv4 =
-    getAllNodes(topology).filter(
+  const quantity =
+    infrastructure.nodes.filter(
       (node) =>
         node.ipv4
     ).length;
 
-  return (
-    totalIPv4 *
-    PRICING.ipv4.hourly
-  );
+  return {
+    quantity,
+
+    total:
+      quantity *
+      PRICING.ipv4.hourly,
+  };
 }
 
 function calculateIPv6(
-  topology: Topology
+  infrastructure: Infrastructure
 ) {
-  const totalIPv6 =
-    getAllNodes(topology).filter(
+  const quantity =
+    infrastructure.nodes.filter(
       (node) =>
         node.ipv6
     ).length;
 
-  return (
-    totalIPv6 *
-    PRICING.ipv6.hourly
-  );
+  return {
+    quantity,
+
+    total:
+      quantity *
+      PRICING.ipv6.hourly,
+  };
 }
 
-export function calculatePrice(
-  topology: Topology,
-  consumption: ConsumptionEstimate
+function convertHourly(
+  hourly: number
 ) {
-  const reserved =
-    calculateReservedCloudlets(
-      topology
-    );
-
-  const dynamic =
-    calculateDynamicCloudlets(
-      consumption
-    );
-
-  const storage =
-    calculateStorage(
-      consumption
-    );
-
-  const ipv4 =
-    calculateIPv4(
-      topology
-    );
-
-  const ipv6 =
-    calculateIPv6(
-      topology
-    );
-
-  const hourly =
-    reserved.total +
-    dynamic.total +
-    storage.total +
-    ipv4 +
-    ipv6;
-
   return {
     hourly,
 
@@ -188,6 +160,87 @@ export function calculatePrice(
     monthly:
       hourly *
       HOURS_PER_MONTH,
+  };
+}
+
+export function calculatePrice(
+  infrastructure: Infrastructure
+): PriceResult {
+  const reserved =
+    calculateReserved(
+      infrastructure
+    );
+
+  const dynamic =
+    calculateDynamicMaximum(
+      infrastructure
+    );
+
+  const storage =
+    calculateStorageMaximum(
+      infrastructure
+    );
+
+  const ipv4 =
+    calculateIPv4(
+      infrastructure
+    );
+
+  const ipv6 =
+    calculateIPv6(
+      infrastructure
+    );
+
+  /*
+   * DE:
+   *
+   * Cloudlets reservados
+   * +
+   * IPv4
+   * +
+   * IPv6
+   *
+   * Recursos dinâmicos e storage
+   * podem ter consumo zero.
+   */
+
+  const minimumHourly =
+    reserved.total +
+    ipv4.total +
+    ipv6.total;
+
+  /*
+   * PARA:
+   *
+   * Cloudlets reservados
+   * +
+   * todos os cloudlets dinâmicos
+   * configurados
+   * +
+   * todo o storage configurado
+   * +
+   * IPv4
+   * +
+   * IPv6
+   */
+
+  const maximumHourly =
+    reserved.total +
+    dynamic.total +
+    storage.total +
+    ipv4.total +
+    ipv6.total;
+
+  return {
+    minimum:
+      convertHourly(
+        minimumHourly
+      ),
+
+    maximum:
+      convertHourly(
+        maximumHourly
+      ),
 
     reservedUnitPrice:
       reserved.pricePerCloudlet,
@@ -196,29 +249,54 @@ export function calculatePrice(
       dynamic.pricePerCloudlet,
 
     breakdown: {
-      reserved:
-        reserved.total,
+      minimum: {
+        reserved:
+          reserved.total,
 
-      dynamic:
-        dynamic.total,
+        dynamic: 0,
 
-      storage:
-        storage.total,
+        storage: 0,
 
-      ipv4,
+        ipv4:
+          ipv4.total,
 
-      ipv6,
+        ipv6:
+          ipv6.total,
+      },
+
+      maximum: {
+        reserved:
+          reserved.total,
+
+        dynamic:
+          dynamic.total,
+
+        storage:
+          storage.total,
+
+        ipv4:
+          ipv4.total,
+
+        ipv6:
+          ipv6.total,
+      },
     },
 
     quantities: {
       reserved:
         reserved.quantity,
 
-      dynamic:
+      dynamicMaximum:
         dynamic.quantity,
 
-      storage:
+      storageMaximum:
         storage.quantity,
+
+      ipv4:
+        ipv4.quantity,
+
+      ipv6:
+        ipv6.quantity,
     },
   };
 }

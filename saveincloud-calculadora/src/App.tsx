@@ -1,143 +1,100 @@
-import { useMemo, useState } from 'react';
+import {
+  useMemo,
+  useState,
+} from 'react';
 
-import Topology from './components/Topology';
+import LayerSection from './components/LayerSection';
 import PriceSummary from './components/PriceSummary';
-import ConsumptionEstimate from './components/ConsumptionEstimate';
+import AddNodeModal from './components/AddNodeModal';
 
-import { calculatePrice } from './utils/calculator';
+import {
+  LAYERS,
+  type LayerType,
+} from './data/stacks';
+
+import {
+  calculatePrice,
+} from './utils/calculator';
 
 import type {
-  ConsumptionEstimate as ConsumptionEstimateType,
+  Infrastructure,
   NodeConfig,
-  Topology as TopologyType,
-} from './types/topology';
+} from './types/infrastructure';
 
 import './index.css';
 
 function createNode(
-  type: NodeConfig['type'],
+  layer: LayerType,
+  stackId: string,
   number: number
 ): NodeConfig {
-  const dynamicCloudlets =
-    type === 'nginx'
-      ? 2
-      : 4;
-
-  const storageGB =
-    type === 'nginx'
-      ? 10
-      : type === 'apache'
-      ? 50
-      : 100;
-
   return {
-    id: `${type}-${Date.now()}-${number}`,
+    id: `${layer}-${stackId}-${Date.now()}-${number}`,
 
-    type,
+    layer,
 
-    name:
-      type === 'nginx'
-        ? `nginx-${number}`
-        : type === 'apache'
-        ? `apache-${number}`
-        : `mariadb-${number}`,
+    stackId,
 
-    reservedCloudlets:
-      type === 'nginx'
-        ? 2
-        : 4,
+    name: `${stackId}-${number}`,
 
-    dynamicCloudlets,
+    reservedCloudlets: 1,
 
-    storageGB,
+    dynamicCloudlets: 4,
 
-    ipv4: true,
+    storageGB: 10,
+
+    ipv4: false,
 
     ipv6: false,
   };
 }
 
 function App() {
-  const [topology, setTopology] =
-    useState<TopologyType>({
-      nginx: [
-        createNode(
-          'nginx',
-          1
-        ),
-      ],
+  const [
+    infrastructure,
+    setInfrastructure,
+  ] = useState<Infrastructure>({
+    nodes: [],
+  });
 
-      apache: [
-        createNode(
-          'apache',
-          1
-        ),
-      ],
-
-      mariadb: [
-        createNode(
-          'mariadb',
-          1
-        ),
-      ],
-    });
-
-  const [consumption, setConsumption] =
-    useState<ConsumptionEstimateType>({
-      dynamicCloudletsUsed: 0,
-      storageGBUsed: 0,
-    });
+  const [
+    modalLayer,
+    setModalLayer,
+  ] = useState<LayerType | null>(
+    null
+  );
 
   const price = useMemo(
     () =>
       calculatePrice(
-        topology,
-        consumption
+        infrastructure
       ),
     [
-      topology,
-      consumption,
+      infrastructure,
     ]
   );
 
-  const updateNode = (
-    updatedNode: NodeConfig
+  const addNode = (
+    layer: LayerType
   ) => {
-    setTopology(
-      (current) => {
-        const type =
-          updatedNode.type;
-
-        return {
-          ...current,
-
-          [type]:
-            current[type].map(
-              (node) =>
-                node.id ===
-                updatedNode.id
-                  ? updatedNode
-                  : node
-            ),
-        };
-      }
-    );
+    setModalLayer(layer);
   };
 
-  const addNode = (
-    type:
-      | 'apache'
-      | 'mariadb'
-  ) => {
-    setTopology(
-      (current) => {
-        const totalNodes =
-          current.nginx.length +
-          current.apache.length +
-          current.mariadb.length;
+  const closeModal = () => {
+    setModalLayer(null);
+  };
 
+  const confirmAddNode = (
+    stackId: string
+  ) => {
+    if (!modalLayer) {
+      return;
+    }
+
+    setInfrastructure(
+      (current) => {
         if (
-          totalNodes >= 48
+          current.nodes.length >= 48
         ) {
           alert(
             'O ambiente atingiu o limite máximo de 48 nodes.'
@@ -146,9 +103,15 @@ function App() {
           return current;
         }
 
+        const layerNodes =
+          current.nodes.filter(
+            (node) =>
+              node.layer ===
+              modalLayer
+          );
+
         if (
-          current[type]
-            .length >= 16
+          layerNodes.length >= 16
         ) {
           alert(
             'Esta camada atingiu o limite máximo de 16 nodes.'
@@ -158,39 +121,70 @@ function App() {
         }
 
         const number =
-          current[type]
-            .length + 1;
+          layerNodes.length + 1;
+
+        const newNode =
+          createNode(
+            modalLayer,
+            stackId,
+            number
+          );
 
         return {
           ...current,
 
-          [type]: [
-            ...current[type],
-
-            createNode(
-              type,
-              number
-            ),
+          nodes: [
+            ...current.nodes,
+            newNode,
           ],
         };
       }
     );
+
+    setModalLayer(null);
   };
 
-  const removeNode = (
-    type: keyof TopologyType,
-    id: string
+  const updateNode = (
+    updatedNode: NodeConfig
   ) => {
-    setTopology(
+    setInfrastructure(
       (current) => ({
         ...current,
 
-        [type]:
-          current[type].filter(
+        nodes:
+          current.nodes.map(
+            (node) =>
+              node.id ===
+              updatedNode.id
+                ? updatedNode
+                : node
+          ),
+      })
+    );
+  };
+
+  const removeNode = (
+    id: string
+  ) => {
+    setInfrastructure(
+      (current) => ({
+        ...current,
+
+        nodes:
+          current.nodes.filter(
             (node) =>
               node.id !== id
           ),
       })
+    );
+  };
+
+  const nodesByLayer = (
+    layer: LayerType
+  ) => {
+    return infrastructure.nodes.filter(
+      (node) =>
+        node.layer === layer
     );
   };
 
@@ -228,10 +222,11 @@ function App() {
             </h1>
 
             <p>
-              Configure os recursos do
-              seu ambiente e estime o
-              consumo para projetar o
-              custo por hora.
+              Escolha as stacks que
+              você precisa, configure
+              os recursos de cada node
+              e estime o custo do
+              ambiente.
             </p>
 
             <div className="cloudlet-reference">
@@ -246,64 +241,109 @@ function App() {
 
         <div className="content">
           <div className="topology-area">
-            <Topology
-              topology={
-                topology
-              }
+            <div className="infrastructure-intro">
+              <span className="eyebrow">
+                INFRAESTRUTURA
+              </span>
 
-              reservedCloudletPrice={
-                price.reservedUnitPrice
-              }
+              <h2>
+                Escolha as camadas do
+                seu ambiente
+              </h2>
 
-              onUpdateNode={
-                updateNode
-              }
+              <p>
+                Adicione somente os
+                serviços que realmente
+                precisa para sua
+                infraestrutura.
+              </p>
+            </div>
 
-              onRemoveNode={
-                removeNode
-              }
+            {LAYERS.map(
+              (layer) => (
+                <LayerSection
+                  key={
+                    layer.id
+                  }
+                  layer={
+                    layer
+                  }
+                  nodes={
+                    nodesByLayer(
+                      layer.id
+                    )
+                  }
+                  reservedCloudletPrice={
+                    price.reservedUnitPrice
+                  }
+                  dynamicCloudletPrice={
+                    price.dynamicUnitPrice
+                  }
+                  onAdd={
+                    addNode
+                  }
+                  onUpdate={
+                    updateNode
+                  }
+                  onRemove={
+                    removeNode
+                  }
+                />
+              )
+            )}
 
-              onAddNode={
-                addNode
-              }
-            />
+            {infrastructure.nodes
+              .length === 0 && (
+              <div className="empty-infrastructure">
+                <div className="empty-infrastructure-icon">
+                  +
+                </div>
 
-            <ConsumptionEstimate
-              topology={
-                topology
-              }
+                <h3>
+                  Seu ambiente ainda
+                  está vazio
+                </h3>
 
-              consumption={
-                consumption
-              }
-
-              dynamicCloudletPrice={
-                price.dynamicUnitPrice
-              }
-
-              onChange={
-                setConsumption
-              }
-            />
+                <p>
+                  Adicione uma stack em
+                  qualquer camada para
+                  começar a montar sua
+                  infraestrutura.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="summary-area">
             <PriceSummary
-              hourly={
-                price.hourly
+              minimum={
+                price.minimum
               }
-
-              daily={
-                price.daily
+              maximum={
+                price.maximum
               }
-
-              monthly={
-                price.monthly
+              nodeCount={
+                infrastructure.nodes
+                  .length
               }
             />
           </div>
         </div>
       </main>
+
+      {modalLayer && (
+        <AddNodeModal
+          layer={
+            modalLayer
+          }
+          onClose={
+            closeModal
+          }
+          onConfirm={
+            confirmAddNode
+          }
+        />
+      )}
     </div>
   );
 }

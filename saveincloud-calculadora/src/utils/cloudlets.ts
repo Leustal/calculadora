@@ -1,4 +1,5 @@
 const RAM_PER_CLOUDLET_MIB = 128;
+
 const CPU_PER_CLOUDLET_MHZ = 400;
 
 export function calculateCloudletRAM(
