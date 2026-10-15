@@ -11,25 +11,39 @@ import NodeCard from './NodeCard';
 
 interface LayerSectionProps {
   layer: LayerDefinition;
-
   nodes: NodeConfig[];
-
   reservedCloudletPrice: number;
-
   dynamicCloudletPrice: number;
-
   onAdd: (
     layer: LayerType
   ) => void;
-
   onUpdate: (
     node: NodeConfig
   ) => void;
-
   onRemove: (
     id: string
   ) => void;
 }
+
+const LAYER_NUMBERS: Record<
+  LayerType,
+  string
+> = {
+  'load-balancer':
+    '01',
+  application:
+    '02',
+  sql:
+    '03',
+  nosql:
+    '04',
+  cache:
+    '05',
+  storage:
+    '06',
+  vps:
+    '07',
+};
 
 export default function LayerSection({
   layer,
@@ -40,25 +54,16 @@ export default function LayerSection({
   onUpdate,
   onRemove,
 }: LayerSectionProps) {
-  const layerNumber =
-    [
-      'load-balancer',
-      'application',
-      'sql',
-      'nosql',
-      'cache',
-      'storage',
-      'vps',
-    ].indexOf(layer.id) + 1;
-
   return (
     <section className="layer-section">
-      <div className="layer-section-header">
+      <header className="layer-section-header">
         <div className="layer-title-area">
           <div className="layer-number">
-            {String(
-              layerNumber
-            ).padStart(2, '0')}
+            {
+              LAYER_NUMBERS[
+                layer.id
+              ]
+            }
           </div>
 
           <div>
@@ -87,7 +92,7 @@ export default function LayerSection({
 
           Adicionar
         </button>
-      </div>
+      </header>
 
       {nodes.length === 0 ? (
         <div className="empty-layer">

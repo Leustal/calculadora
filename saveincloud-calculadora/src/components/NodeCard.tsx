@@ -1,20 +1,24 @@
-import type {
-  CSSProperties,
+import {
+  useMemo,
 } from 'react';
-
-import type {
-  NodeConfig,
-} from '../types/infrastructure';
 
 import {
   getStackById,
   getStackTheme,
 } from '../data/stacks';
 
+import type {
+  NodeConfig,
+} from '../types/infrastructure';
+
 import {
   formatCPU,
   formatRAM,
 } from '../utils/cloudlets';
+
+import {
+  LIMITS,
+} from '../data/limits';
 
 interface NodeCardProps {
   node: NodeConfig;
@@ -28,6 +32,20 @@ interface NodeCardProps {
   ) => void;
 }
 
+function formatCurrency(
+  value: number
+) {
+  return value.toLocaleString(
+    'pt-BR',
+    {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }
+  );
+}
+
 export default function NodeCard({
   node,
   reservedCloudletPrice,
@@ -35,137 +53,149 @@ export default function NodeCard({
   onUpdate,
   onRemove,
 }: NodeCardProps) {
-  const stack = getStackById(
-    node.stackId
+  const stack = useMemo(
+    () =>
+      getStackById(
+        node.stackId
+      ),
+    [
+      node.stackId,
+    ]
   );
 
-  const theme = getStackTheme(
-    node.stackId
+  const theme = useMemo(
+    () =>
+      getStackTheme(
+        node.stackId
+      ),
+    [
+      node.stackId,
+    ]
   );
 
-  const stackStyle = {
-    '--stack-color':
-      theme.color,
-    '--stack-background':
-      theme.background,
-    '--stack-border':
-      theme.border,
-    '--stack-dark-background':
-      theme.darkBackground,
-  } as CSSProperties;
+  const reservedCost =
+    node.reservedCloudlets *
+    reservedCloudletPrice;
 
-  const reservedRAM =
-    formatRAM(
-      node.reservedCloudlets
-    );
+  const dynamicCost =
+    node.dynamicCloudlets *
+    dynamicCloudletPrice;
 
-  const reservedCPU =
-    formatCPU(
-      node.reservedCloudlets
-    );
-
-  const dynamicRAM =
-    formatRAM(
-      node.dynamicCloudlets
-    );
-
-  const dynamicCPU =
-    formatCPU(
-      node.dynamicCloudlets
-    );
-
-  const dynamicPrice =
-    dynamicCloudletPrice *
-    node.dynamicCloudlets;
-
-  const handleReservedChange = (
-    value: number
+  const updateNumber = (
+    field:
+      | 'reservedCloudlets'
+      | 'dynamicCloudlets'
+      | 'storageGB',
+    value: string
   ) => {
-    if (!Number.isFinite(value)) {
+    const numericValue =
+      Number(value);
+
+    if (
+      !Number.isFinite(
+        numericValue
+      )
+    ) {
       return;
     }
 
-    const safeValue =
-      Math.max(
-        1,
-        Math.min(
-          256,
-          value
-        )
+    let finalValue =
+      Math.floor(
+        numericValue
       );
+
+    if (
+      field ===
+      'reservedCloudlets'
+    ) {
+      finalValue =
+        Math.max(
+          1,
+          Math.min(
+            LIMITS.maxCloudletsPerNode,
+            finalValue
+          )
+        );
+    }
+
+    if (
+      field ===
+      'dynamicCloudlets'
+    ) {
+      finalValue =
+        Math.max(
+          0,
+          Math.min(
+            LIMITS.maxCloudletsPerNode,
+            finalValue
+          )
+        );
+    }
+
+    if (
+      field ===
+      'storageGB'
+    ) {
+      finalValue =
+        Math.max(
+          0,
+          Math.min(
+            LIMITS.maxStoragePerNodeGB,
+            finalValue
+          )
+        );
+    }
 
     onUpdate({
       ...node,
-      reservedCloudlets:
-        safeValue,
+      [field]:
+        finalValue,
     });
   };
 
-  const handleDynamicChange = (
-    value: number
+  const updateBoolean = (
+    field:
+      | 'ipv4'
+      | 'ipv6'
   ) => {
-    if (!Number.isFinite(value)) {
-      return;
-    }
-
-    const safeValue =
-      Math.max(
-        0,
-        Math.min(
-          256,
-          value
-        )
-      );
-
     onUpdate({
       ...node,
-      dynamicCloudlets:
-        safeValue,
-    });
-  };
-
-  const handleStorageChange = (
-    value: number
-  ) => {
-    if (!Number.isFinite(value)) {
-      return;
-    }
-
-    const safeValue =
-      Math.max(
-        0,
-        Math.min(
-          100,
-          value
-        )
-      );
-
-    onUpdate({
-      ...node,
-      storageGB: safeValue,
+      [field]:
+        !node[field],
     });
   };
 
   return (
     <article
       className="node-card"
-      style={stackStyle}
+      style={
+        {
+          '--stack-color':
+            theme.color,
+          '--stack-background':
+            theme.background,
+          '--stack-border':
+            theme.border,
+          '--stack-dark-background':
+            theme.darkBackground,
+        } as React.CSSProperties
+      }
     >
-
-      <div className="node-card-header">
-
-        <div className="node-card-identity">
-
-          <div className="node-stack-icon">
+      <div
+        className="node-card-header"
+      >
+        <div className="node-identity">
+          <div
+            className="node-stack-icon"
+          >
             {stack?.name
               ?.charAt(0)
               .toUpperCase() ??
-              'N'}
+              '?'}
           </div>
 
-          <div className="node-card-title">
-
-            <span className="node-card-stack">
+          <div>
+            <span className="node-stack-name">
               {stack?.name ??
                 node.stackId}
             </span>
@@ -173,253 +203,250 @@ export default function NodeCard({
             <h3>
               {node.name}
             </h3>
-
           </div>
-
         </div>
 
         <button
           type="button"
-          className="node-card-remove"
+          className="remove-node-button"
           onClick={() =>
-            onRemove(node.id)
+            onRemove(
+              node.id
+            )
           }
-          aria-label="Remover node"
-          title="Remover node"
         >
-          ×
+          Remover
         </button>
-
       </div>
 
-      <div className="node-resources">
-
-        <div className="node-resource">
-
-          <span className="node-resource-label">
+      <div className="node-summary">
+        <div className="summary-resource reserved">
+          <span className="summary-label">
             Reservados
           </span>
 
           <strong>
             {node.reservedCloudlets}
-            {' '}
-            <small>
-              cloudlets
-            </small>
           </strong>
 
-          <span className="node-resource-capacity">
-            {reservedRAM}
-            {' RAM · '}
-            {reservedCPU}
-            {' CPU'}
+          <span>
+            cloudlets
           </span>
 
+          <small>
+            {formatRAM(
+              node.reservedCloudlets
+            )}{' '}
+            RAM ·{' '}
+            {formatCPU(
+              node.reservedCloudlets
+            )}{' '}
+            CPU
+          </small>
         </div>
 
-        <div className="node-resource">
-
-          <span className="node-resource-label">
+        <div className="summary-resource dynamic">
+          <span className="summary-label">
             Dinâmicos
           </span>
 
           <strong>
             {node.dynamicCloudlets}
-            {' '}
-            <small>
-              cloudlets
-            </small>
           </strong>
 
-          <span className="node-resource-capacity">
-            até {dynamicRAM}
-            {' · '}
-            {dynamicCPU}
+          <span>
+            cloudlets
           </span>
 
+          <small>
+            até{' '}
+            {formatRAM(
+              node.dynamicCloudlets
+            )}{' '}
+            ·{' '}
+            {formatCPU(
+              node.dynamicCloudlets
+            )}
+          </small>
         </div>
-
       </div>
 
-      <div className="node-card-section">
-
-        <div className="node-card-section-title">
-          Recursos
+      <div className="node-section">
+        <div className="node-section-heading">
+          <span>
+            RECURSOS
+          </span>
         </div>
 
-        <div className="node-config-row">
+        <div className="resource-grid">
+          <div className="resource-field">
+            <div className="field-heading">
+              <label
+                htmlFor={`${node.id}-reserved`}
+              >
+                Cloudlets reservados
+              </label>
 
-          <div className="node-config-info">
+              <span>
+                Recursos garantidos para
+                este node.
+              </span>
+            </div>
 
-            <label
-              htmlFor={`${node.id}-reserved`}
-            >
-              Cloudlets reservados
-            </label>
-
-            <span>
-              Recursos garantidos para
-              este node.
-            </span>
-
-          </div>
-
-          <div className="node-input-with-unit">
-
-            <input
-              id={`${node.id}-reserved`}
-              type="number"
-              min={1}
-              max={256}
-              value={
-                node.reservedCloudlets
-              }
-              onChange={(event) =>
-                handleReservedChange(
-                  Number(
+            <div className="number-control">
+              <input
+                id={`${node.id}-reserved`}
+                type="number"
+                min={1}
+                max={
+                  LIMITS.maxCloudletsPerNode
+                }
+                value={
+                  node.reservedCloudlets
+                }
+                onChange={(event) =>
+                  updateNumber(
+                    'reservedCloudlets',
                     event.target.value
                   )
-                )
-              }
-            />
+                }
+              />
 
-            <span>
-              cloudlets
-            </span>
+              <span>
+                cloudlets
+              </span>
+            </div>
 
+            <div className="capacity-row">
+              <div>
+                <span>
+                  RAM
+                </span>
+
+                <strong>
+                  {formatRAM(
+                    node.reservedCloudlets
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  CPU
+                </span>
+
+                <strong>
+                  {formatCPU(
+                    node.reservedCloudlets
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Custo reservado
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    reservedCost
+                  )}
+                  /h
+                </strong>
+              </div>
+            </div>
           </div>
 
-        </div>
+          <div className="resource-field">
+            <div className="field-heading">
+              <label
+                htmlFor={`${node.id}-dynamic`}
+              >
+                Limite de escala
+              </label>
 
-        <div className="node-capacity">
+              <span>
+                Máximo de cloudlets
+                dinâmicos que este node
+                poderá utilizar.
+              </span>
+            </div>
 
-          <div>
-            <span>
-              RAM
-            </span>
-
-            <strong>
-              {reservedRAM}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              CPU
-            </span>
-
-            <strong>
-              {reservedCPU}
-            </strong>
-          </div>
-
-          <div className="node-price">
-
-            <span>
-              Reservado
-            </span>
-
-            <strong>
-              R${' '}
-              {reservedCloudletPrice.toFixed(
-                3
-              )}
-              /h
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div className="node-config-row">
-
-          <div className="node-config-info">
-
-            <label
-              htmlFor={`${node.id}-dynamic`}
-            >
-              Limite de escala
-            </label>
-
-            <span>
-              Máximo de cloudlets
-              dinâmicos que este node
-              poderá utilizar.
-            </span>
-
-          </div>
-
-          <div className="node-input-with-unit">
-
-            <input
-              id={`${node.id}-dynamic`}
-              type="number"
-              min={0}
-              max={256}
-              value={
-                node.dynamicCloudlets
-              }
-              onChange={(event) =>
-                handleDynamicChange(
-                  Number(
+            <div className="number-control">
+              <input
+                id={`${node.id}-dynamic`}
+                type="number"
+                min={0}
+                max={
+                  LIMITS.maxCloudletsPerNode
+                }
+                value={
+                  node.dynamicCloudlets
+                }
+                onChange={(event) =>
+                  updateNumber(
+                    'dynamicCloudlets',
                     event.target.value
                   )
-                )
-              }
-            />
+                }
+              />
 
-            <span>
-              cloudlets
-            </span>
+              <span>
+                cloudlets
+              </span>
+            </div>
 
+            <div className="capacity-row">
+              <div>
+                <span>
+                  RAM máxima
+                </span>
+
+                <strong>
+                  {formatRAM(
+                    node.dynamicCloudlets
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  CPU máxima
+                </span>
+
+                <strong>
+                  {formatCPU(
+                    node.dynamicCloudlets
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Uso máximo
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    dynamicCost
+                  )}
+                  /h
+                </strong>
+              </div>
+            </div>
           </div>
+        </div>
+      </div>
 
+      <div className="node-section">
+        <div className="node-section-heading">
+          <span>
+            ARMAZENAMENTO
+          </span>
         </div>
 
-        <div className="node-capacity">
-
-          <div>
-            <span>
-              RAM máxima
-            </span>
-
-            <strong>
-              {dynamicRAM}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              CPU máxima
-            </span>
-
-            <strong>
-              {dynamicCPU}
-            </strong>
-          </div>
-
-          <div className="node-price">
-
-            <span>
-              Uso máximo
-            </span>
-
-            <strong>
-              R${' '}
-              {dynamicPrice.toFixed(
-                3
-              )}
-              /h
-            </strong>
-
-          </div>
-
-        </div>
-
-        <div className="node-config-row">
-
-          <div className="node-config-info">
-
+        <div className="storage-field">
+          <div className="field-heading">
             <label
               htmlFor={`${node.id}-storage`}
             >
@@ -430,24 +457,23 @@ export default function NodeCard({
               Capacidade máxima de
               armazenamento deste node.
             </span>
-
           </div>
 
-          <div className="node-input-with-unit">
-
+          <div className="storage-control">
             <input
               id={`${node.id}-storage`}
               type="number"
               min={0}
-              max={100}
+              max={
+                LIMITS.maxStoragePerNodeGB
+              }
               value={
                 node.storageGB
               }
               onChange={(event) =>
-                handleStorageChange(
-                  Number(
-                    event.target.value
-                  )
+                updateNumber(
+                  'storageGB',
+                  event.target.value
                 )
               }
             />
@@ -455,110 +481,118 @@ export default function NodeCard({
             <span>
               GB
             </span>
-
           </div>
 
-        </div>
-
-        <div className="node-storage-info">
-
-          <div>
+          <div className="storage-info">
             <span>
-              Storage
+              Cobrança pelo armazenamento
+              efetivamente utilizado.
             </span>
-
-            <strong>
-              R$ 0,001/GB/h
-            </strong>
           </div>
-
-          <span>
-            Cobrança pelo armazenamento
-            efetivamente utilizado.
-          </span>
-
         </div>
-
       </div>
 
-      <div className="node-card-section">
-
-        <div className="node-card-section-title">
-          Rede pública
+      <div className="node-section network-section">
+        <div className="node-section-heading">
+          <span>
+            REDE PÚBLICA
+          </span>
         </div>
 
-        <div className="node-options">
-
+        <div className="network-options">
           <label
             className={
               node.ipv4
-                ? 'node-toggle active'
-                : 'node-toggle'
+                ? 'network-option active'
+                : 'network-option'
+            }
+            style={
+              node.ipv4
+                ? {
+                    borderColor:
+                      theme.border,
+                    background:
+                      theme.background,
+                  }
+                : undefined
             }
           >
-
             <input
               type="checkbox"
-              checked={node.ipv4}
-              onChange={(event) =>
-                onUpdate({
-                  ...node,
-                  ipv4:
-                    event.target
-                      .checked,
-                })
+              checked={
+                node.ipv4
+              }
+              onChange={() =>
+                updateBoolean(
+                  'ipv4'
+                )
               }
             />
 
-            <span className="node-toggle-check">
+            <span className="custom-checkbox">
               {node.ipv4
                 ? '✓'
                 : ''}
             </span>
 
             <span>
-              IPv4 público
-            </span>
+              <strong>
+                IPv4 público
+              </strong>
 
+              <small>
+                Endereço IPv4 público
+              </small>
+            </span>
           </label>
 
           <label
             className={
               node.ipv6
-                ? 'node-toggle active'
-                : 'node-toggle'
+                ? 'network-option active'
+                : 'network-option'
+            }
+            style={
+              node.ipv6
+                ? {
+                    borderColor:
+                      theme.border,
+                    background:
+                      theme.background,
+                  }
+                : undefined
             }
           >
-
             <input
               type="checkbox"
-              checked={node.ipv6}
-              onChange={(event) =>
-                onUpdate({
-                  ...node,
-                  ipv6:
-                    event.target
-                      .checked,
-                })
+              checked={
+                node.ipv6
+              }
+              onChange={() =>
+                updateBoolean(
+                  'ipv6'
+                )
               }
             />
 
-            <span className="node-toggle-check">
+            <span className="custom-checkbox">
               {node.ipv6
                 ? '✓'
                 : ''}
             </span>
 
             <span>
-              IPv6 público
+              <strong>
+                IPv6 público
+              </strong>
+
+              <small>
+                Endereço IPv6 público
+              </small>
             </span>
-
           </label>
-
         </div>
-
       </div>
-
     </article>
   );
 }

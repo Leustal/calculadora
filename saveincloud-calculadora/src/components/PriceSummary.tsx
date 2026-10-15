@@ -8,12 +8,14 @@ interface PriceSummaryProps {
   nodeCount: number;
 }
 
-function formatPrice(
+function formatCurrency(
   value: number
-): string {
+) {
   return value.toLocaleString(
     'pt-BR',
     {
+      style: 'currency',
+      currency: 'BRL',
       minimumFractionDigits: 3,
       maximumFractionDigits: 3,
     }
@@ -43,145 +45,164 @@ export default function PriceSummary({
       </div>
 
       <div className="price-summary-body">
-
-        {/* DE */}
         <section className="price-scenario minimum">
-          <div className="price-scenario-header">
-            <div>
-              <span className="price-scenario-label">
-                DE
-              </span>
-
-              <span className="price-scenario-description">
-                Consumo mínimo
-              </span>
+          <div className="scenario-heading">
+            <div className="scenario-badge">
+              DE
             </div>
 
-            <span className="price-scenario-badge">
+            <div>
+              <strong>
+                Consumo mínimo
+              </strong>
+
+              <span>
+                Recursos com cobrança
+                mínima
+              </span>
+            </div>
+          </div>
+
+          <div className="scenario-card">
+            <span className="scenario-label">
               MÍNIMO
             </span>
-          </div>
 
-          <div className="price-main">
-            <span className="price-currency">
-              R$
-            </span>
+            <p className="scenario-description">
+              Cenário com recursos
+              reservados
+            </p>
 
-            <strong>
-              {formatPrice(
-                minimum.hourly
-              )}
-            </strong>
-
-            <span className="price-unit">
-              / hora
-            </span>
-          </div>
-
-          <div className="price-periods">
-            <div className="price-period">
+            <div className="main-price">
               <span>
-                Por dia
+                R$
               </span>
 
               <strong>
-                R${' '}
-                {formatPrice(
-                  minimum.daily
+                {formatCurrency(
+                  minimum.hourly
+                ).replace(
+                  'R$',
+                  ''
                 )}
               </strong>
+
+              <small>
+                / hora
+              </small>
             </div>
 
-            <div className="price-period">
-              <span>
-                Por mês
-              </span>
+            <div className="scenario-periods">
+              <div>
+                <span>
+                  Por dia
+                </span>
 
-              <strong>
-                R${' '}
-                {formatPrice(
-                  minimum.monthly
-                )}
-              </strong>
+                <strong>
+                  {formatCurrency(
+                    minimum.daily
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Por mês
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    minimum.monthly
+                  )}
+                </strong>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* SETA */}
-        <div className="price-transition">
-          <span className="price-transition-line" />
-          <span className="price-transition-arrow">
-            ↓
+        <div className="price-divider">
+          <span>
+            PARA
           </span>
-          <span className="price-transition-line" />
         </div>
 
-        {/* PARA */}
         <section className="price-scenario maximum">
-          <div className="price-scenario-header">
-            <div>
-              <span className="price-scenario-label">
-                PARA
-              </span>
-
-              <span className="price-scenario-description">
-                Uso máximo configurado
-              </span>
+          <div className="scenario-heading">
+            <div className="scenario-badge">
+              PARA
             </div>
 
-            <span className="price-scenario-badge">
+            <div>
+              <strong>
+                Uso máximo configurado
+              </strong>
+
+              <span>
+                Recursos utilizados no
+                limite
+              </span>
+            </div>
+          </div>
+
+          <div className="scenario-card">
+            <span className="scenario-label">
               MÁXIMO
             </span>
-          </div>
 
-          <div className="price-main">
-            <span className="price-currency">
-              R$
-            </span>
+            <p className="scenario-description">
+              Cenário de utilização
+              máxima
+            </p>
 
-            <strong>
-              {formatPrice(
-                maximum.hourly
-              )}
-            </strong>
-
-            <span className="price-unit">
-              / hora
-            </span>
-          </div>
-
-          <div className="price-periods">
-            <div className="price-period">
+            <div className="main-price">
               <span>
-                Por dia
+                R$
               </span>
 
               <strong>
-                R${' '}
-                {formatPrice(
-                  maximum.daily
+                {formatCurrency(
+                  maximum.hourly
+                ).replace(
+                  'R$',
+                  ''
                 )}
               </strong>
+
+              <small>
+                / hora
+              </small>
             </div>
 
-            <div className="price-period">
-              <span>
-                Por mês
-              </span>
+            <div className="scenario-periods">
+              <div>
+                <span>
+                  Por dia
+                </span>
 
-              <strong>
-                R${' '}
-                {formatPrice(
-                  maximum.monthly
-                )}
-              </strong>
+                <strong>
+                  {formatCurrency(
+                    maximum.daily
+                  )}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Por mês
+                </span>
+
+                <strong>
+                  {formatCurrency(
+                    maximum.monthly
+                  )}
+                </strong>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* RESUMO */}
-        <div className="price-summary-stats">
-          <div className="price-stat">
+        <div className="summary-meta">
+          <div>
             <strong>
               {nodeCount}
             </strong>
@@ -193,7 +214,7 @@ export default function PriceSummary({
             </span>
           </div>
 
-          <div className="price-stat">
+          <div>
             <strong>
               730
             </strong>
@@ -204,48 +225,34 @@ export default function PriceSummary({
           </div>
         </div>
 
-        {/* EXPLICAÇÃO */}
-        <div className="price-explanation">
-          <div className="price-explanation-title">
-            <span className="price-info-icon">
-              i
-            </span>
-
+        <section className="how-it-works">
+          <h3>
             Como funciona?
-          </div>
+          </h3>
 
           <p>
-            O valor{' '}
-            <strong>
-              De
-            </strong>{' '}
-            considera os recursos
-            com cobrança mínima,
-            como cloudlets
-            reservados e IPs
+            O valor <strong>DE</strong>{' '}
+            considera os recursos com
+            cobrança mínima, como
+            cloudlets reservados e IPs
             públicos.
           </p>
 
           <p>
-            O valor{' '}
-            <strong>
-              Para
-            </strong>{' '}
-            representa o cenário
-            em que os cloudlets
-            dinâmicos e o storage
-            configurados sejam
-            utilizados no limite
+            O valor <strong>PARA</strong>{' '}
+            representa o cenário em
+            que os cloudlets dinâmicos
+            e o storage configurados
+            sejam utilizados no limite
             durante todo o período.
           </p>
 
           <p>
-            A cobrança real é
-            feita por hora,
-            conforme o consumo
+            A cobrança real é feita por
+            hora conforme o consumo
             efetivo dos recursos.
           </p>
-        </div>
+        </section>
       </div>
     </aside>
   );

@@ -20,13 +20,11 @@ export interface NodeConfig {
   name: string;
 
   reservedCloudlets: number;
-
   dynamicCloudlets: number;
 
   storageGB: number;
 
   ipv4: boolean;
-
   ipv6: boolean;
 }
 
@@ -42,11 +40,9 @@ export interface PriceRange {
 
 export interface PriceResult {
   minimum: PriceRange;
-
   maximum: PriceRange;
 
   reservedUnitPrice: number;
-
   dynamicUnitPrice: number;
 
   breakdown: {

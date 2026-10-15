@@ -1,15 +1,15 @@
+import {
+  PRICING,
+  HOURS_PER_DAY,
+  HOURS_PER_MONTH,
+} from '../data/pricing';
+
 import type {
   Infrastructure,
   PriceResult,
 } from '../types/infrastructure';
 
-import {
-  HOURS_PER_DAY,
-  HOURS_PER_MONTH,
-  PRICING,
-} from '../data/pricing';
-
-export function getTierPrice(
+function getTierPrice(
   quantity: number,
   tiers: {
     min: number;
@@ -21,282 +21,191 @@ export function getTierPrice(
     return 0;
   }
 
-  const tier = tiers.find(
-    (item) =>
-      quantity >= item.min &&
-      quantity <= item.max
+  const tier =
+    tiers.find(
+      (item) =>
+        quantity >= item.min &&
+        quantity <= item.max
+    );
+
+  return (
+    tier?.price ??
+    tiers[
+      tiers.length - 1
+    ].price
   );
-
-  return tier
-    ? tier.price
-    : 0;
 }
 
-function calculateReserved(
-  infrastructure: Infrastructure
+function getStoragePrice(
+  storageGB: number
 ) {
-  const quantity =
-    infrastructure.nodes.reduce(
-      (total, node) =>
-        total +
-        node.reservedCloudlets,
-      0
-    );
-
-  const pricePerCloudlet =
-    getTierPrice(
-      quantity,
-      PRICING.reservedCloudlets
-    );
-
-  return {
-    quantity,
-
-    pricePerCloudlet,
-
-    total:
-      quantity *
-      pricePerCloudlet,
-  };
-}
-
-function calculateDynamicMaximum(
-  infrastructure: Infrastructure
-) {
-  const quantity =
-    infrastructure.nodes.reduce(
-      (total, node) =>
-        total +
-        node.dynamicCloudlets,
-      0
-    );
-
-  const pricePerCloudlet =
-    getTierPrice(
-      quantity,
-      PRICING.dynamicCloudlets
-    );
-
-  return {
-    quantity,
-
-    pricePerCloudlet,
-
-    total:
-      quantity *
-      pricePerCloudlet,
-  };
-}
-
-function calculateStorageMaximum(
-  infrastructure: Infrastructure
-) {
-  const quantity =
-    infrastructure.nodes.reduce(
-      (total, node) =>
-        total +
-        node.storageGB,
-      0
-    );
-
-  return {
-    quantity,
-
-    pricePerGB:
-      PRICING.storage.hourly,
-
-    total:
-      quantity *
-      PRICING.storage.hourly,
-  };
-}
-
-function calculateIPv4(
-  infrastructure: Infrastructure
-) {
-  const quantity =
-    infrastructure.nodes.filter(
-      (node) =>
-        node.ipv4
-    ).length;
-
-  return {
-    quantity,
-
-    total:
-      quantity *
-      PRICING.ipv4.hourly,
-  };
-}
-
-function calculateIPv6(
-  infrastructure: Infrastructure
-) {
-  const quantity =
-    infrastructure.nodes.filter(
-      (node) =>
-        node.ipv6
-    ).length;
-
-  return {
-    quantity,
-
-    total:
-      quantity *
-      PRICING.ipv6.hourly,
-  };
-}
-
-function convertHourly(
-  hourly: number
-) {
-  return {
-    hourly,
-
-    daily:
-      hourly *
-      HOURS_PER_DAY,
-
-    monthly:
-      hourly *
-      HOURS_PER_MONTH,
-  };
+  return (
+    storageGB *
+    PRICING.storage.hourly
+  );
 }
 
 export function calculatePrice(
   infrastructure: Infrastructure
 ): PriceResult {
-  const reserved =
-    calculateReserved(
-      infrastructure
+  const nodes =
+    infrastructure.nodes;
+
+  const reservedCloudlets =
+    nodes.reduce(
+      (
+        total,
+        node
+      ) =>
+        total +
+        node.reservedCloudlets,
+      0
     );
 
-  const dynamic =
-    calculateDynamicMaximum(
-      infrastructure
+  const dynamicMaximum =
+    nodes.reduce(
+      (
+        total,
+        node
+      ) =>
+        total +
+        node.dynamicCloudlets,
+      0
     );
 
-  const storage =
-    calculateStorageMaximum(
-      infrastructure
+  const storageMaximum =
+    nodes.reduce(
+      (
+        total,
+        node
+      ) =>
+        total +
+        node.storageGB,
+      0
     );
 
   const ipv4 =
-    calculateIPv4(
-      infrastructure
-    );
+    nodes.filter(
+      (node) =>
+        node.ipv4
+    ).length;
 
   const ipv6 =
-    calculateIPv6(
-      infrastructure
+    nodes.filter(
+      (node) =>
+        node.ipv6
+    ).length;
+
+  const reservedUnitPrice =
+    getTierPrice(
+      reservedCloudlets,
+      PRICING.reservedCloudlets
     );
 
-  /*
-   * DE:
-   *
-   * Cloudlets reservados
-   * +
-   * IPv4
-   * +
-   * IPv6
-   *
-   * Recursos dinâmicos e storage
-   * podem ter consumo zero.
-   */
+  const dynamicUnitPrice =
+    getTierPrice(
+      dynamicMaximum,
+      PRICING.dynamicCloudlets
+    );
+
+  const reservedHourly =
+    reservedCloudlets *
+    reservedUnitPrice;
+
+  const dynamicMinimumHourly =
+    0;
+
+  const dynamicMaximumHourly =
+    dynamicMaximum *
+    dynamicUnitPrice;
+
+  const storageHourly =
+    getStoragePrice(
+      storageMaximum
+    );
+
+  const ipv4Hourly =
+    ipv4 *
+    PRICING.ipv4.hourly;
+
+  const ipv6Hourly =
+    ipv6 *
+    PRICING.ipv6.hourly;
 
   const minimumHourly =
-    reserved.total +
-    ipv4.total +
-    ipv6.total;
-
-  /*
-   * PARA:
-   *
-   * Cloudlets reservados
-   * +
-   * todos os cloudlets dinâmicos
-   * configurados
-   * +
-   * todo o storage configurado
-   * +
-   * IPv4
-   * +
-   * IPv6
-   */
+    reservedHourly +
+    dynamicMinimumHourly +
+    ipv4Hourly +
+    ipv6Hourly;
 
   const maximumHourly =
-    reserved.total +
-    dynamic.total +
-    storage.total +
-    ipv4.total +
-    ipv6.total;
+    reservedHourly +
+    dynamicMaximumHourly +
+    storageHourly +
+    ipv4Hourly +
+    ipv6Hourly;
 
   return {
-    minimum:
-      convertHourly(
-        minimumHourly
-      ),
+    minimum: {
+      hourly:
+        minimumHourly,
+      daily:
+        minimumHourly *
+        HOURS_PER_DAY,
+      monthly:
+        minimumHourly *
+        HOURS_PER_MONTH,
+    },
 
-    maximum:
-      convertHourly(
-        maximumHourly
-      ),
+    maximum: {
+      hourly:
+        maximumHourly,
+      daily:
+        maximumHourly *
+        HOURS_PER_DAY,
+      monthly:
+        maximumHourly *
+        HOURS_PER_MONTH,
+    },
 
-    reservedUnitPrice:
-      reserved.pricePerCloudlet,
+    reservedUnitPrice,
 
-    dynamicUnitPrice:
-      dynamic.pricePerCloudlet,
+    dynamicUnitPrice,
 
     breakdown: {
       minimum: {
         reserved:
-          reserved.total,
-
-        dynamic: 0,
-
+          reservedHourly,
+        dynamic:
+          dynamicMinimumHourly,
         storage: 0,
-
         ipv4:
-          ipv4.total,
-
+          ipv4Hourly,
         ipv6:
-          ipv6.total,
+          ipv6Hourly,
       },
 
       maximum: {
         reserved:
-          reserved.total,
-
+          reservedHourly,
         dynamic:
-          dynamic.total,
-
+          dynamicMaximumHourly,
         storage:
-          storage.total,
-
+          storageHourly,
         ipv4:
-          ipv4.total,
-
+          ipv4Hourly,
         ipv6:
-          ipv6.total,
+          ipv6Hourly,
       },
     },
 
     quantities: {
       reserved:
-        reserved.quantity,
-
-      dynamicMaximum:
-        dynamic.quantity,
-
-      storageMaximum:
-        storage.quantity,
-
-      ipv4:
-        ipv4.quantity,
-
-      ipv6:
-        ipv6.quantity,
+        reservedCloudlets,
+      dynamicMaximum,
+      storageMaximum,
+      ipv4,
+      ipv6,
     },
   };
 }
