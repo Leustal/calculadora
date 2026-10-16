@@ -506,16 +506,6 @@ export default function NodeCard({
                 ? 'network-option active'
                 : 'network-option'
             }
-            style={
-              node.ipv4
-                ? {
-                    borderColor:
-                      theme.border,
-                    background:
-                      theme.background,
-                  }
-                : undefined
-            }
           >
             <input
               type="checkbox"
@@ -551,16 +541,6 @@ export default function NodeCard({
               node.ipv6
                 ? 'network-option active'
                 : 'network-option'
-            }
-            style={
-              node.ipv6
-                ? {
-                    borderColor:
-                      theme.border,
-                    background:
-                      theme.background,
-                  }
-                : undefined
             }
           >
             <input

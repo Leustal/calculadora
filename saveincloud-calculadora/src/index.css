@@ -182,8 +182,7 @@ button:disabled {
 }
 
 .summary-area {
-  position: sticky;
-  top: 24px;
+  position: static;
 }
 
 /* =========================================================
@@ -464,11 +463,21 @@ button:disabled {
 }
 
 .summary-resource.reserved {
-  border-left: 3px solid #4c82df;
+  border-left: 3px solid var(--stack-color, #4c82df);
+  background: color-mix(
+    in srgb,
+    var(--stack-color, #4c82df) 5%,
+    white
+  );
 }
 
 .summary-resource.dynamic {
-  border-left: 3px solid #8b64d6;
+  border-left: 3px solid var(--stack-color, #4c82df);
+  background: color-mix(
+    in srgb,
+    var(--stack-color, #4c82df) 5%,
+    white
+  );
 }
 
 .summary-label {
@@ -579,9 +588,19 @@ button:disabled {
 
 .number-control input:focus,
 .storage-control input:focus {
-  border-color: #4c82df;
+  border-color: var(--stack-color, #4c82df);
   box-shadow:
-    0 0 0 3px rgba(76, 130, 223, 0.11);
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--stack-color, #4c82df) 12%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--stack-color, #4c82df) 4%,
+    white
+  );
 }
 
 .number-control span,
@@ -653,6 +672,28 @@ button:disabled {
 
 .network-option:hover {
   border-color: #c8d5e5;
+}
+
+.network-option.active {
+  border-color: var(--stack-color, #3475df);
+  background: color-mix(
+    in srgb,
+    var(--stack-color, #3475df) 9%,
+    white
+  );
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--stack-color, #3475df) 10%,
+      transparent
+    );
+}
+
+.network-option.active .custom-checkbox {
+  border-color: var(--stack-color, #3475df);
+  background: var(--stack-color, #3475df);
+  color: #fff;
 }
 
 .network-option input {
