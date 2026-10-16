@@ -322,49 +322,64 @@ function App() {
   };
 
   const saveScenario = () => {
-    if (scenarios.length >= 4) {
+    if (
+      scenarios.length >= 4
+    ) {
       alert(
         'Você pode salvar até 4 cenários. Exclua um cenário antigo para salvar outro.'
       );
+
       return;
     }
 
-    const now = Date.now();
-    const scenario: SavedScenario = {
-      id: `${now}-${Math.random()
-        .toString(36)
-        .slice(2)}`,
-      name: `Cenário ${scenarios.length + 1}`,
-      infrastructure: JSON.parse(
-        JSON.stringify(infrastructure)
-      ) as Infrastructure,
-      price: JSON.parse(
-        JSON.stringify(price)
-      ) as typeof price,
-      createdAt: now,
-    };
+    const suggestedName =
+      `Cenário ${
+        scenarios.length + 1
+      }`;
 
-    setScenarios((current) => {
-      if (current.length >= 4) {
-        return current;
-      }
+    const name =
+      window.prompt(
+        'Nome do cenário:',
+        suggestedName
+      );
 
-      const updated = [...current, scenario];
+    if (!name?.trim()) {
+      return;
+    }
 
-      try {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(updated)
-        );
-      } catch (error) {
-        console.error(
-          'Não foi possível salvar o cenário no armazenamento local.',
-          error
-        );
-      }
+    const scenario: SavedScenario =
+      {
+        id: `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}`,
 
-      return updated;
-    });
+        name:
+          name.trim(),
+
+        infrastructure:
+          JSON.parse(
+            JSON.stringify(
+              infrastructure
+            )
+          ) as Infrastructure,
+
+        price:
+          JSON.parse(
+            JSON.stringify(
+              price
+            )
+          ),
+
+        createdAt:
+          Date.now(),
+      };
+
+    setScenarios(
+      (current) => [
+        ...current,
+        scenario,
+      ]
+    );
   };
 
   const removeScenario = (
@@ -424,296 +439,317 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="logo-area">
-          <div className="logo-mark">
-            S
-          </div>
+    <>
+      <div className="app">
+        <header className="header">
+          <div className="logo-area">
+            <div className="logo-mark">
+              S
+            </div>
 
-          <div>
-            <h1>
-              SaveInCloud
-            </h1>
+            <div>
+              <h1>
+                SaveInCloud
+              </h1>
 
-            <span>
-              Calculadora de
-              infraestrutura
-            </span>
-          </div>
-        </div>
-
-        <div className="header-actions">
-          <button
-            type="button"
-            className="header-button secondary"
-            onClick={
-              resetInfrastructure
-            }
-          >
-            <RotateCcw
-              size={15}
-            />
-            Novo
-          </button>
-
-          <button
-            type="button"
-            className="header-button"
-            onClick={
-              shareConfiguration
-            }
-          >
-            <Link
-              size={15}
-            />
-            Compartilhar
-          </button>
-
-          <button
-            type="button"
-            className="header-button primary"
-            onClick={
-              printQuote
-            }
-          >
-            <Download
-              size={15}
-            />
-            Orçamento
-          </button>
-        </div>
-      </header>
-
-      <main className="container">
-        <div className="page-title">
-          <div>
-            <span className="eyebrow">
-              SIMULADOR
-            </span>
-
-            <h1>
-              Monte sua infraestrutura
-            </h1>
-
-            <p>
-              Escolha as stacks que você
-              precisa, configure os recursos
-              de cada node e estime o custo
-              do ambiente.
-            </p>
-
-            <div className="cloudlet-reference">
-              <strong>
-                Referência:
-              </strong>{' '}
-              1 Cloudlet = 128 MiB RAM
-              + 400 MHz CPU
+              <span>
+                Calculadora de
+                infraestrutura
+              </span>
             </div>
           </div>
-        </div>
 
-        <TemplateSelector
-          onSelect={(
-            template
-          ) =>
-            loadTemplate(
-              template.infrastructure
-            )
-          }
-        />
+          <div className="header-actions">
+            <button
+              type="button"
+              className="header-button secondary"
+              onClick={
+                resetInfrastructure
+              }
+            >
+              <RotateCcw
+                size={15}
+              />
 
-        <div className="content">
-          <div className="topology-area">
-            <div className="infrastructure-intro">
-              <div>
-                <span className="eyebrow">
-                  INFRAESTRUTURA
-                </span>
+              Novo
+            </button>
 
-                <h2>
-                  Escolha as camadas do
-                  seu ambiente
-                </h2>
+            <button
+              type="button"
+              className="header-button"
+              onClick={
+                shareConfiguration
+              }
+            >
+              <Link
+                size={15}
+              />
 
-                <p>
-                  Adicione somente os serviços
-                  que realmente precisa para
-                  sua infraestrutura.
-                </p>
+              Compartilhar
+            </button>
+
+            <button
+              type="button"
+              className="header-button primary"
+              onClick={
+                printQuote
+              }
+            >
+              <Download
+                size={15}
+              />
+
+              Orçamento
+            </button>
+          </div>
+        </header>
+
+        <main className="container">
+          <div className="page-title">
+            <div>
+              <span className="eyebrow">
+                SIMULADOR
+              </span>
+
+              <h1>
+                Monte sua infraestrutura
+              </h1>
+
+              <p>
+                Escolha as stacks que você
+                precisa, configure os recursos
+                de cada node e estime o custo
+                do ambiente.
+              </p>
+
+              <div className="cloudlet-reference">
+                <strong>
+                  Referência:
+                </strong>{' '}
+                1 Cloudlet = 128 MiB RAM
+                + 400 MHz CPU
               </div>
-
-              {infrastructure.nodes.length >
-                0 && (
-                <span className="node-counter">
-                  {infrastructure.nodes.length}
-                  /48 nodes
-                </span>
-              )}
             </div>
+          </div>
 
-            {LAYERS.map(
-              (layer) => (
-                <LayerSection
-                  key={
-                    layer.id
-                  }
-                  layer={
-                    layer
-                  }
-                  nodes={
-                    nodesByLayer(
-                      layer.id
-                    )
-                  }
-                  reservedCloudletPrice={
-                    price.reservedUnitPrice
-                  }
-                  dynamicCloudletPrice={
-                    price.dynamicUnitPrice
-                  }
-                  onAdd={
-                    addNode
-                  }
-                  onUpdate={
-                    updateNode
-                  }
-                  onRemove={
-                    removeNode
-                  }
-                />
+          <TemplateSelector
+            onSelect={(
+              template
+            ) =>
+              loadTemplate(
+                template.infrastructure
               )
-            )}
+            }
+          />
 
-            {infrastructure.nodes
-              .length === 0 && (
-              <div className="empty-infrastructure">
-                <div className="empty-infrastructure-icon">
-                  +
+          <div className="content">
+            <div className="topology-area">
+              <div className="infrastructure-intro">
+                <div>
+                  <span className="eyebrow">
+                    INFRAESTRUTURA
+                  </span>
+
+                  <h2>
+                    Escolha as camadas do
+                    seu ambiente
+                  </h2>
+
+                  <p>
+                    Adicione somente os serviços
+                    que realmente precisa para
+                    sua infraestrutura.
+                  </p>
                 </div>
 
-                <h3>
-                  Seu ambiente ainda
-                  está vazio
-                </h3>
-
-                <p>
-                  Escolha um template acima
-                  ou adicione uma stack em
-                  qualquer camada para começar.
-                </p>
+                {infrastructure.nodes.length >
+                  0 && (
+                  <span className="node-counter">
+                    {infrastructure.nodes.length}
+                    /48 nodes
+                  </span>
+                )}
               </div>
-            )}
 
-            <ArchitectureDiagram
-              infrastructure={
-                infrastructure
-              }
-            />
+              {LAYERS.map(
+                (layer) => (
+                  <LayerSection
+                    key={
+                      layer.id
+                    }
+                    layer={
+                      layer
+                    }
+                    nodes={
+                      nodesByLayer(
+                        layer.id
+                      )
+                    }
+                    reservedCloudletPrice={
+                      price.reservedUnitPrice
+                    }
+                    dynamicCloudletPrice={
+                      price.dynamicUnitPrice
+                    }
+                    onAdd={
+                      addNode
+                    }
+                    onUpdate={
+                      updateNode
+                    }
+                    onRemove={
+                      removeNode
+                    }
+                  />
+                )
+              )}
 
-            <CostBreakdown
-              price={price}
-            />
+              {infrastructure.nodes
+                .length === 0 && (
+                <div className="empty-infrastructure">
+                  <div className="empty-infrastructure-icon">
+                    +
+                  </div>
 
-            <Recommendations
-              infrastructure={
-                infrastructure
-              }
-            />
+                  <h3>
+                    Seu ambiente ainda
+                    está vazio
+                  </h3>
 
-            <ScenarioComparison
-              scenarios={
-                scenarios
-              }
-              onSave={
-                saveScenario
-              }
-              onRemove={
-                removeScenario
-              }
-              onLoad={
-                loadScenario
-              }
-            />
-          </div>
+                  <p>
+                    Escolha um template acima
+                    ou adicione uma stack em
+                    qualquer camada para começar.
+                  </p>
+                </div>
+              )}
 
-          <div className="summary-area">
-            <PriceSummary
-              minimum={
-                price.minimum
-              }
-
-              maximum={
-                price.maximum
-              }
-
-              minimumSavings={
-                price.minimumSavings
-              }
-
-              maximumSavings={
-                price.maximumSavings
-              }
-
-              minimumPayable={
-                price.minimumPayable
-              }
-
-              maximumPayable={
-                price.maximumPayable
-              }
-
-              nodeCount={
-                infrastructure.nodes
-                  .length
-              }
-            />
-
-            <div className="summary-actions">
-              <button
-                type="button"
-                className="summary-action"
-                onClick={
-                  shareConfiguration
+              <ArchitectureDiagram
+                infrastructure={
+                  infrastructure
                 }
-              >
-                <Link
-                  size={15}
-                />
-                Compartilhar configuração
-              </button>
+              />
 
-              <button
-                type="button"
-                className="summary-action"
-                onClick={
-                  printQuote
+              <CostBreakdown
+                price={price}
+              />
+
+              <Recommendations
+                infrastructure={
+                  infrastructure
                 }
-              >
-                <Download
-                  size={15}
-                />
-                Imprimir / salvar orçamento
-              </button>
+              />
+
+              <ScenarioComparison
+                scenarios={
+                  scenarios
+                }
+                onSave={
+                  saveScenario
+                }
+                onRemove={
+                  removeScenario
+                }
+                onLoad={
+                  loadScenario
+                }
+              />
+            </div>
+
+            <div className="summary-area">
+              <PriceSummary
+                minimum={
+                  price.minimum
+                }
+
+                maximum={
+                  price.maximum
+                }
+
+                minimumSavings={
+                  price.minimumSavings
+                }
+
+                maximumSavings={
+                  price.maximumSavings
+                }
+
+                minimumPayable={
+                  price.minimumPayable
+                }
+
+                maximumPayable={
+                  price.maximumPayable
+                }
+
+                nodeCount={
+                  infrastructure.nodes
+                    .length
+                }
+              />
+
+              <div className="summary-actions">
+                <button
+                  type="button"
+                  className="summary-action"
+                  onClick={
+                    shareConfiguration
+                  }
+                >
+                  <Link
+                    size={15}
+                  />
+
+                  Compartilhar configuração
+                </button>
+
+                <button
+                  type="button"
+                  className="summary-action"
+                  onClick={
+                    printQuote
+                  }
+                >
+                  <Download
+                    size={15}
+                  />
+
+                  Imprimir / salvar orçamento
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </main>
+        </main>
 
-      {modalLayer && (
-        <AddNodeModal
-          layer={
-            modalLayer
-          }
-          onClose={
-            closeModal
-          }
-          onConfirm={
-            confirmAddNode
-          }
-        />
-      )}
+        {modalLayer && (
+          <AddNodeModal
+            layer={
+              modalLayer
+            }
+            onClose={
+              closeModal
+            }
+            onConfirm={
+              confirmAddNode
+            }
+          />
+        )}
+      </div>
 
+      {/*
+       * IMPORTANTE:
+       * O orçamento precisa ficar FORA da .app.
+       *
+       * O CSS de impressão oculta .app com:
+       *
+       * .app {
+       *   display: none !important;
+       * }
+       *
+       * Se o PrintableQuote ficar dentro da .app,
+       * ele também será ocultado e o PDF ficará
+       * praticamente vazio.
+       */}
       <PrintableQuote
         infrastructure={
           infrastructure
@@ -722,7 +758,7 @@ function App() {
           price
         }
       />
-    </div>
+    </>
   );
 }
 
