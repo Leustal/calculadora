@@ -5,6 +5,13 @@ import type {
 interface PriceSummaryProps {
   minimum: PriceRange;
   maximum: PriceRange;
+
+  minimumSavings?: PriceRange;
+  maximumSavings?: PriceRange;
+
+  minimumPayable?: PriceRange;
+  maximumPayable?: PriceRange;
+
   nodeCount: number;
 }
 
@@ -22,103 +29,240 @@ function formatCurrency(
   );
 }
 
+function formatValue(
+  value: number
+) {
+  return formatCurrency(value)
+    .replace('R$', '')
+    .trim();
+}
+
+interface ScenarioProps {
+  type: 'minimum' | 'maximum';
+  price: PriceRange;
+  savings: PriceRange;
+  payable: PriceRange;
+}
+
+function Scenario({
+  type,
+  price,
+  savings,
+  payable,
+}: ScenarioProps) {
+  const isMaximum =
+    type === 'maximum';
+
+  return (
+    <section
+      className={`price-scenario ${
+        isMaximum
+          ? 'maximum'
+          : 'minimum'
+      }`}
+    >
+      <div className="scenario-heading">
+        <div className="scenario-badge">
+          {isMaximum
+            ? 'PARA'
+            : 'DE'}
+        </div>
+
+        <div>
+          <strong>
+            {isMaximum
+              ? 'Uso máximo configurado'
+              : 'Recursos reservados'}
+          </strong>
+
+          <span>
+            {isMaximum
+              ? 'Recursos utilizados no limite'
+              : 'Cenário com recursos reservados'}
+          </span>
+        </div>
+      </div>
+
+      <div className="scenario-card">
+        <span className="scenario-label">
+          {isMaximum
+            ? 'MÁXIMO'
+            : 'MÍNIMO'}
+        </span>
+
+        <p className="scenario-description">
+          {isMaximum
+            ? 'Cenário de utilização máxima'
+            : 'Cenário com recursos reservados'}
+        </p>
+
+        <div className="main-price">
+          <span>
+            R$
+          </span>
+
+          <strong>
+            {formatValue(
+              payable.hourly
+            )}
+          </strong>
+
+          <small>
+            / hora
+          </small>
+        </div>
+
+        <div className="scenario-price-table">
+          <div className="price-table-header">
+            <span></span>
+
+            <span>
+              Hora
+            </span>
+
+            <span>
+              Dia
+            </span>
+
+            <span>
+              Mês
+            </span>
+          </div>
+
+          <div className="price-table-row total">
+            <span>
+              Total
+            </span>
+
+            <strong>
+              R$ {formatValue(
+                price.hourly
+              )}
+            </strong>
+
+            <strong>
+              R$ {formatValue(
+                price.daily
+              )}
+            </strong>
+
+            <strong>
+              R$ {formatValue(
+                price.monthly
+              )}
+            </strong>
+          </div>
+
+          <div className="price-table-row discount">
+            <span>
+              Desconto
+            </span>
+
+            <strong>
+              -R$ {formatValue(
+                savings.hourly
+              )}
+            </strong>
+
+            <strong>
+              -R$ {formatValue(
+                savings.daily
+              )}
+            </strong>
+
+            <strong>
+              -R$ {formatValue(
+                savings.monthly
+              )}
+            </strong>
+          </div>
+
+          <div className="price-table-divider" />
+
+          <div className="price-table-row payable">
+            <span>
+              Total a pagar
+            </span>
+
+            <strong>
+              R$ {formatValue(
+                payable.hourly
+              )}
+            </strong>
+
+            <strong>
+              R$ {formatValue(
+                payable.daily
+              )}
+            </strong>
+
+            <strong>
+              R$ {formatValue(
+                payable.monthly
+              )}
+            </strong>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function PriceSummary({
   minimum,
   maximum,
+  minimumSavings,
+  maximumSavings,
+  minimumPayable,
+  maximumPayable,
   nodeCount,
 }: PriceSummaryProps) {
+  const zeroRange: PriceRange = {
+    hourly: 0,
+    daily: 0,
+    monthly: 0,
+  };
+
+  const resolvedMinimumSavings =
+    minimumSavings ??
+    zeroRange;
+
+  const resolvedMaximumSavings =
+    maximumSavings ??
+    zeroRange;
+
+  const resolvedMinimumPayable =
+    minimumPayable ??
+    minimum;
+
+  const resolvedMaximumPayable =
+    maximumPayable ??
+    maximum;
+
   return (
     <aside className="price-summary">
-      <div className="price-summary-header">
-        <span className="eyebrow">
-          ESTIMATIVA
-        </span>
-
+      <header className="price-summary-header">
         <h2>
-          Custo do ambiente
+          Estimativa
         </h2>
 
         <p>
-          Estimativa baseada nos
-          recursos configurados.
+          Valores calculados conforme
+          os recursos configurados.
         </p>
-      </div>
+      </header>
 
       <div className="price-summary-body">
-        <section className="price-scenario minimum">
-          <div className="scenario-heading">
-            <div className="scenario-badge">
-              DE
-            </div>
-
-            <div>
-              <strong>
-                Consumo mínimo
-              </strong>
-
-              <span>
-                Recursos com cobrança
-                mínima
-              </span>
-            </div>
-          </div>
-
-          <div className="scenario-card">
-            <span className="scenario-label">
-              MÍNIMO
-            </span>
-
-            <p className="scenario-description">
-              Cenário com recursos
-              reservados
-            </p>
-
-            <div className="main-price">
-              <span>
-                R$
-              </span>
-
-              <strong>
-                {formatCurrency(
-                  minimum.hourly
-                ).replace(
-                  'R$',
-                  ''
-                )}
-              </strong>
-
-              <small>
-                / hora
-              </small>
-            </div>
-
-            <div className="scenario-periods">
-              <div>
-                <span>
-                  Por dia
-                </span>
-
-                <strong>
-                  {formatCurrency(
-                    minimum.daily
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Por mês
-                </span>
-
-                <strong>
-                  {formatCurrency(
-                    minimum.monthly
-                  )}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </section>
+        <Scenario
+          type="minimum"
+          price={minimum}
+          savings={
+            resolvedMinimumSavings
+          }
+          payable={
+            resolvedMinimumPayable
+          }
+        />
 
         <div className="price-divider">
           <span>
@@ -126,80 +270,16 @@ export default function PriceSummary({
           </span>
         </div>
 
-        <section className="price-scenario maximum">
-          <div className="scenario-heading">
-            <div className="scenario-badge">
-              PARA
-            </div>
-
-            <div>
-              <strong>
-                Uso máximo configurado
-              </strong>
-
-              <span>
-                Recursos utilizados no
-                limite
-              </span>
-            </div>
-          </div>
-
-          <div className="scenario-card">
-            <span className="scenario-label">
-              MÁXIMO
-            </span>
-
-            <p className="scenario-description">
-              Cenário de utilização
-              máxima
-            </p>
-
-            <div className="main-price">
-              <span>
-                R$
-              </span>
-
-              <strong>
-                {formatCurrency(
-                  maximum.hourly
-                ).replace(
-                  'R$',
-                  ''
-                )}
-              </strong>
-
-              <small>
-                / hora
-              </small>
-            </div>
-
-            <div className="scenario-periods">
-              <div>
-                <span>
-                  Por dia
-                </span>
-
-                <strong>
-                  {formatCurrency(
-                    maximum.daily
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>
-                  Por mês
-                </span>
-
-                <strong>
-                  {formatCurrency(
-                    maximum.monthly
-                  )}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </section>
+        <Scenario
+          type="maximum"
+          price={maximum}
+          savings={
+            resolvedMaximumSavings
+          }
+          payable={
+            resolvedMaximumPayable
+          }
+        />
 
         <div className="summary-meta">
           <div>
@@ -224,35 +304,6 @@ export default function PriceSummary({
             </span>
           </div>
         </div>
-
-        <section className="how-it-works">
-          <h3>
-            Como funciona?
-          </h3>
-
-          <p>
-            O valor <strong>DE</strong>{' '}
-            considera os recursos com
-            cobrança mínima, como
-            cloudlets reservados e IPs
-            públicos.
-          </p>
-
-          <p>
-            O valor <strong>PARA</strong>{' '}
-            representa o cenário em
-            que os cloudlets dinâmicos
-            e o storage configurados
-            sejam utilizados no limite
-            durante todo o período.
-          </p>
-
-          <p>
-            A cobrança real é feita por
-            hora conforme o consumo
-            efetivo dos recursos.
-          </p>
-        </section>
       </div>
     </aside>
   );

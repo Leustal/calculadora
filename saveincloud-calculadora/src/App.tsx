@@ -1,11 +1,24 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react';
 
+import {
+  Download,
+  Link,
+  RotateCcw,
+} from 'lucide-react';
+
 import LayerSection from './components/LayerSection';
 import PriceSummary from './components/PriceSummary';
 import AddNodeModal from './components/AddNodeModal';
+import TemplateSelector from './components/TemplateSelector';
+import ArchitectureDiagram from './components/ArchitectureDiagram';
+import CostBreakdown from './components/CostBreakdown';
+import Recommendations from './components/Recommendations';
+import ScenarioComparison from './components/ScenarioComparison';
+import PrintableQuote from './components/PrintableQuote';
 
 import {
   LAYERS,
@@ -21,7 +34,19 @@ import type {
   NodeConfig,
 } from './types/infrastructure';
 
+import type {
+  SavedScenario,
+} from './types/scenario';
+
+import {
+  createShareUrl,
+  getSharedInfrastructure,
+} from './utils/sharing';
+
 import './index.css';
+
+const STORAGE_KEY =
+  'saveincloud-calculator-scenarios';
 
 function createNode(
   layer: LayerType,
@@ -49,19 +74,70 @@ function createNode(
   };
 }
 
+function createEmptyInfrastructure(): Infrastructure {
+  return {
+    nodes: [],
+  };
+}
+
+function readSavedScenarios(): SavedScenario[] {
+  try {
+    const saved =
+      localStorage.getItem(
+        STORAGE_KEY
+      );
+
+    if (!saved) {
+      return [];
+    }
+
+    const parsed =
+      JSON.parse(saved);
+
+    if (
+      !Array.isArray(
+        parsed
+      )
+    ) {
+      return [];
+    }
+
+    return parsed as SavedScenario[];
+  } catch {
+    return [];
+  }
+}
+
 function App() {
+  const sharedInfrastructure =
+    useMemo(
+      () =>
+        getSharedInfrastructure(),
+      []
+    );
+
   const [
     infrastructure,
     setInfrastructure,
-  ] = useState<Infrastructure>({
-    nodes: [],
-  });
+  ] = useState<Infrastructure>(
+    sharedInfrastructure ??
+      createEmptyInfrastructure()
+  );
 
   const [
     modalLayer,
     setModalLayer,
   ] = useState<LayerType | null>(
     null
+  );
+
+  const [
+    scenarios,
+    setScenarios,
+  ] = useState<
+    SavedScenario[]
+  >(() =>
+    readSavedScenarios()
   );
 
   const price = useMemo(
@@ -73,6 +149,29 @@ function App() {
       infrastructure,
     ]
   );
+
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(
+        scenarios
+      )
+    );
+  }, [scenarios]);
+
+  useEffect(() => {
+    if (!sharedInfrastructure) {
+      return;
+    }
+
+    window.history.replaceState(
+      {},
+      '',
+      window.location.pathname
+    );
+  }, [
+    sharedInfrastructure,
+  ]);
 
   const addNode = (
     layer: LayerType
@@ -94,7 +193,8 @@ function App() {
     setInfrastructure(
       (current) => {
         if (
-          current.nodes.length >= 48
+          current.nodes.length >=
+          48
         ) {
           alert(
             'O ambiente atingiu o limite máximo de 48 nodes.'
@@ -111,7 +211,8 @@ function App() {
           );
 
         if (
-          layerNodes.length >= 16
+          layerNodes.length >=
+          16
         ) {
           alert(
             'Esta camada atingiu o limite máximo de 16 nodes.'
@@ -188,6 +289,140 @@ function App() {
     );
   };
 
+  const loadTemplate = (
+    templateInfrastructure: Infrastructure
+  ) => {
+    setInfrastructure(
+      JSON.parse(
+        JSON.stringify(
+          templateInfrastructure
+        )
+      ) as Infrastructure
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
+  const resetInfrastructure = () => {
+    const confirmed =
+      window.confirm(
+        'Deseja limpar toda a infraestrutura atual?'
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setInfrastructure(
+      createEmptyInfrastructure()
+    );
+  };
+
+  const saveScenario = () => {
+    if (scenarios.length >= 4) {
+      alert(
+        'Você pode salvar até 4 cenários. Exclua um cenário antigo para salvar outro.'
+      );
+      return;
+    }
+
+    const now = Date.now();
+    const scenario: SavedScenario = {
+      id: `${now}-${Math.random()
+        .toString(36)
+        .slice(2)}`,
+      name: `Cenário ${scenarios.length + 1}`,
+      infrastructure: JSON.parse(
+        JSON.stringify(infrastructure)
+      ) as Infrastructure,
+      price: JSON.parse(
+        JSON.stringify(price)
+      ) as typeof price,
+      createdAt: now,
+    };
+
+    setScenarios((current) => {
+      if (current.length >= 4) {
+        return current;
+      }
+
+      const updated = [...current, scenario];
+
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify(updated)
+        );
+      } catch (error) {
+        console.error(
+          'Não foi possível salvar o cenário no armazenamento local.',
+          error
+        );
+      }
+
+      return updated;
+    });
+  };
+
+  const removeScenario = (
+    id: string
+  ) => {
+    setScenarios(
+      (current) =>
+        current.filter(
+          (scenario) =>
+            scenario.id !== id
+        )
+    );
+  };
+
+  const loadScenario = (
+    scenario: SavedScenario
+  ) => {
+    setInfrastructure(
+      JSON.parse(
+        JSON.stringify(
+          scenario.infrastructure
+        )
+      ) as Infrastructure
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
+  const shareConfiguration =
+    async () => {
+      const url =
+        createShareUrl(
+          infrastructure
+        );
+
+      try {
+        await navigator.clipboard.writeText(
+          url
+        );
+
+        alert(
+          'Link da configuração copiado para a área de transferência.'
+        );
+      } catch {
+        window.prompt(
+          'Copie o link da configuração:',
+          url
+        );
+      }
+    };
+
+  const printQuote = () => {
+    window.print();
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -207,6 +442,47 @@ function App() {
             </span>
           </div>
         </div>
+
+        <div className="header-actions">
+          <button
+            type="button"
+            className="header-button secondary"
+            onClick={
+              resetInfrastructure
+            }
+          >
+            <RotateCcw
+              size={15}
+            />
+            Novo
+          </button>
+
+          <button
+            type="button"
+            className="header-button"
+            onClick={
+              shareConfiguration
+            }
+          >
+            <Link
+              size={15}
+            />
+            Compartilhar
+          </button>
+
+          <button
+            type="button"
+            className="header-button primary"
+            onClick={
+              printQuote
+            }
+          >
+            <Download
+              size={15}
+            />
+            Orçamento
+          </button>
+        </div>
       </header>
 
       <main className="container">
@@ -217,16 +493,14 @@ function App() {
             </span>
 
             <h1>
-              Monte sua
-              infraestrutura
+              Monte sua infraestrutura
             </h1>
 
             <p>
-              Escolha as stacks que
-              você precisa, configure
-              os recursos de cada node
-              e estime o custo do
-              ambiente.
+              Escolha as stacks que você
+              precisa, configure os recursos
+              de cada node e estime o custo
+              do ambiente.
             </p>
 
             <div className="cloudlet-reference">
@@ -239,24 +513,43 @@ function App() {
           </div>
         </div>
 
+        <TemplateSelector
+          onSelect={(
+            template
+          ) =>
+            loadTemplate(
+              template.infrastructure
+            )
+          }
+        />
+
         <div className="content">
           <div className="topology-area">
             <div className="infrastructure-intro">
-              <span className="eyebrow">
-                INFRAESTRUTURA
-              </span>
+              <div>
+                <span className="eyebrow">
+                  INFRAESTRUTURA
+                </span>
 
-              <h2>
-                Escolha as camadas do
-                seu ambiente
-              </h2>
+                <h2>
+                  Escolha as camadas do
+                  seu ambiente
+                </h2>
 
-              <p>
-                Adicione somente os
-                serviços que realmente
-                precisa para sua
-                infraestrutura.
-              </p>
+                <p>
+                  Adicione somente os serviços
+                  que realmente precisa para
+                  sua infraestrutura.
+                </p>
+              </div>
+
+              {infrastructure.nodes.length >
+                0 && (
+                <span className="node-counter">
+                  {infrastructure.nodes.length}
+                  /48 nodes
+                </span>
+              )}
             </div>
 
             {LAYERS.map(
@@ -305,13 +598,43 @@ function App() {
                 </h3>
 
                 <p>
-                  Adicione uma stack em
-                  qualquer camada para
-                  começar a montar sua
-                  infraestrutura.
+                  Escolha um template acima
+                  ou adicione uma stack em
+                  qualquer camada para começar.
                 </p>
               </div>
             )}
+
+            <ArchitectureDiagram
+              infrastructure={
+                infrastructure
+              }
+            />
+
+            <CostBreakdown
+              price={price}
+            />
+
+            <Recommendations
+              infrastructure={
+                infrastructure
+              }
+            />
+
+            <ScenarioComparison
+              scenarios={
+                scenarios
+              }
+              onSave={
+                saveScenario
+              }
+              onRemove={
+                removeScenario
+              }
+              onLoad={
+                loadScenario
+              }
+            />
           </div>
 
           <div className="summary-area">
@@ -319,14 +642,60 @@ function App() {
               minimum={
                 price.minimum
               }
+
               maximum={
                 price.maximum
               }
+
+              minimumSavings={
+                price.minimumSavings
+              }
+
+              maximumSavings={
+                price.maximumSavings
+              }
+
+              minimumPayable={
+                price.minimumPayable
+              }
+
+              maximumPayable={
+                price.maximumPayable
+              }
+
               nodeCount={
                 infrastructure.nodes
                   .length
               }
             />
+
+            <div className="summary-actions">
+              <button
+                type="button"
+                className="summary-action"
+                onClick={
+                  shareConfiguration
+                }
+              >
+                <Link
+                  size={15}
+                />
+                Compartilhar configuração
+              </button>
+
+              <button
+                type="button"
+                className="summary-action"
+                onClick={
+                  printQuote
+                }
+              >
+                <Download
+                  size={15}
+                />
+                Imprimir / salvar orçamento
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -344,6 +713,15 @@ function App() {
           }
         />
       )}
+
+      <PrintableQuote
+        infrastructure={
+          infrastructure
+        }
+        price={
+          price
+        }
+      />
     </div>
   );
 }
