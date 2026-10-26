@@ -15,6 +15,7 @@ import PriceSummary from './components/PriceSummary';
 import AddNodeModal from './components/AddNodeModal';
 import TemplateSelector from './components/TemplateSelector';
 import ArchitectureDiagram from './components/ArchitectureDiagram';
+import InfrastructureSummary from './components/InfrastructureSummary';
 import CostBreakdown from './components/CostBreakdown';
 import Recommendations from './components/Recommendations';
 import ScenarioComparison from './components/ScenarioComparison';
@@ -44,6 +45,7 @@ import {
 } from './utils/sharing';
 
 import './index.css';
+import './App.css';
 
 const STORAGE_KEY =
   'saveincloud-calculator-scenarios';
@@ -622,6 +624,12 @@ function App() {
                     qualquer camada para começar.
                   </p>
                 </div>
+              )}
+
+              {infrastructure.nodes.length > 0 && (
+                <InfrastructureSummary
+                  infrastructure={infrastructure}
+                />
               )}
 
               <ArchitectureDiagram
